@@ -1,113 +1,147 @@
-from umqtt.simple import MQTTClient
 from machine import Pin
 import network
 import ujson
 import time
-import dht
+from umqtt.simple import MQTTClient
 
+# MQTT Configuration
 MQTT_BROKER = "test.mosquitto.org"
-DHT_TOPIC = "mqtt-demo/dht"
-PIR_TOPIC = "mqtt-demo/pir"
-LED1_TOPIC = "mqtt-demo/led"
-LED2_TOPIC = "mqtt-demo/irled2"
-CLIENT_ID = "mark-mqtt-demo"
+CLIENT_ID = "mqtt-demo"
+TOPIC_MOTION = "mqtt-demo/motion"
+TOPIC_GAS = "mqtt-demo/gas"
+TOPIC_LED1 = "mqtt-demo/led1"  # controls gas LED
+TOPIC_LED2 = "mqtt-demo/led2"  # controls motion LED
 
-dht_sensor = dht.DHT22(Pin(33))
-onboard_led = Pin(23, Pin.OUT)
-# Koushik Sripathi 123CS0021
+# Pin Configuration
+LED1_PIN = 23  # Gas indicator LED
+LED2_PIN = 2   # Motion indicator LED
+PIR_PIN = 4    # PIR sensor output
+GAS_PIN = 25   # MQ-2 DOUT digital pin
 
-PIR_PIN = 4                 # PIR input pin (choose a free GPIO)
-pir_pin = Pin(PIR_PIN, Pin.IN)
-
-onboard_led2 = Pin(2, Pin.OUT)  # second LED on a different pin
+# Initialize pins
+led_gas = Pin(LED1_PIN, Pin.OUT)
+led_motion = Pin(LED2_PIN, Pin.OUT)
+pir_sensor = Pin(PIR_PIN, Pin.IN)
+gas_sensor = Pin(GAS_PIN, Pin.IN)
 
 def connect_wifi():
     wifi = network.WLAN(network.STA_IF)
     wifi.active(True)
     wifi.connect('Wokwi-GUEST', '')
-    while not wifi.isconnected():
+    
+    # Wait for connection with timeout
+    timeout = 10
+    while timeout > 0 and not wifi.isconnected():
+        print("Connecting to WiFi...")
         time.sleep(1)
-    print("WiFi Connected:", wifi.ifconfig())
-    return True
+        timeout -= 1
+    
+    if wifi.isconnected():
+        print("WiFi connected:", wifi.ifconfig())
+        return True
+    else:
+        print("Failed to connect to WiFi")
+        return False
 
 def message_callback(topic, msg):
     try:
-        topic_str = topic.decode()
-        msg_str = msg.decode().lower()
-        if topic_str == LED1_TOPIC:
-            if msg_str == "on":
-                onboard_led.value(1)
-            elif msg_str == "off":
-                onboard_led.value(0)
-        elif topic_str == LED2_TOPIC:
-            if msg_str == "on":
-                onboard_led2.value(1)
-            elif msg_str == "off":
-                onboard_led2.value(0)
+        topic_str = topic.decode('utf-8')
+        msg_str = msg.decode('utf-8').lower()
+        print("MQTT message:", topic_str, msg_str)
+        
+        if topic_str == TOPIC_LED1:
+            led_gas.value(1 if msg_str == "on" else 0)
+            print(f"Gas LED turned {'ON' if msg_str == 'on' else 'OFF'}")
+        elif topic_str == TOPIC_LED2:
+            led_motion.value(1 if msg_str == "on" else 0)
+            print(f"Motion LED turned {'ON' if msg_str == 'on' else 'OFF'}")
     except Exception as e:
         print("Message Callback Error:", e)
 
 def connect_mqtt():
-    client = MQTTClient(CLIENT_ID, MQTT_BROKER, port=1883)
-    client.set_callback(message_callback)
-    client.connect()
-    client.subscribe(LED1_TOPIC)
-    client.subscribe(LED2_TOPIC)
-    print("Connected to MQTT. Subscribed to", LED1_TOPIC, LED2_TOPIC)
-    return client
-
-def read_and_publish_dht(client):
     try:
-        dht_sensor.measure()
-        temp = dht_sensor.temperature()
-        hum = dht_sensor.humidity()
-        reading = {
-            "temperature": round(temp, 1),
-            "humidity": round(hum, 1),
-            "timestamp": time.time()
-        }
-        payload = ujson.dumps(reading)
-        client.publish(DHT_TOPIC, payload)
-        print("Published to", DHT_TOPIC, payload)
+        client = MQTTClient(CLIENT_ID, MQTT_BROKER, port=1883, keepalive=60)
+        client.set_callback(message_callback)
+        client.connect()
+        client.subscribe(TOPIC_LED1)
+        client.subscribe(TOPIC_LED2)
+        print("Connected to MQTT broker and subscribed to control topics.")
+        return client
     except Exception as e:
-        print("DHT Read/Publish Error:", e)
+        print("MQTT connection failed:", e)
+        return None
 
-def read_and_publish_pir(client):
+def publish_motion(client):
     try:
-        motion = pir_pin.value()  # 1 when motion detected on many PIR modules
-        if motion:
-            reading2 = "Motion Detected"
-            onboard_led2.value(1)
-        else:
-            reading2 = "No Motion Detected"
-            onboard_led2.value(0)
-        payload2 = ujson.dumps({"motion": reading2, "timestamp": time.time()})
-        client.publish(PIR_TOPIC, payload2)
-        print("Published to", PIR_TOPIC, payload2)
+        motion = pir_sensor.value()
+        msg = "Motion Detected" if motion else "No Motion"
+        # Only update LED if not controlled by MQTT
+        # led_motion.value(motion)  # Commented out to avoid conflict with MQTT control
+        payload = ujson.dumps({"motion": msg, "timestamp": time.time()})
+        client.publish(TOPIC_MOTION, payload)
+        print("Published motion:", payload)
     except Exception as e:
-        print("PIR Read/Publish Error:", e)
+        print("Error publishing motion:", e)
+
+def publish_gas(client):
+    try:
+        gas_state = gas_sensor.value()
+        # MQ-2 output is LOW (0) when gas detected
+        detected = (gas_state == 0)
+        msg = "Gas Detected" if detected else "No Gas"
+        # Only update LED if not controlled by MQTT
+        # led_gas.value(1 if detected else 0)  # Commented out to avoid conflict with MQTT control
+        payload = ujson.dumps({"gas": msg, "timestamp": time.time()})
+        client.publish(TOPIC_GAS, payload)
+        print("Published gas:", payload)
+    except Exception as e:
+        print("Error publishing gas:", e)
 
 def main():
+    # Connect to WiFi
     if not connect_wifi():
-        print("Failed to connect to WiFi!")
+        print("Failed to connect to WiFi")
         return
+
+    # Connect to MQTT
+    client = connect_mqtt()
+    if client is None:
+        print("Failed to connect to MQTT broker")
+        return
+
+    print("Starting main loop...")
+    
     try:
-        mqtt_client = connect_mqtt()
-    except Exception as e:
-        print("Failed to connect to MQTT:", e)
-        return
-    while True:
-        try:
-            mqtt_client.check_msg()
-            read_and_publish_dht(mqtt_client)
-            read_and_publish_pir(mqtt_client)
-            time.sleep(5)
-        except KeyboardInterrupt:
-            print("\nShutting down...")
-            break
-        except Exception as e:
-            print("Error in main loop:", e)
-            time.sleep(1)
+        while True:
+            try:
+                # Check for MQTT messages
+                client.check_msg()
+                
+                # Publish sensor data
+                publish_motion(client)
+                publish_gas(client)
+                
+                # Wait before next iteration
+                time.sleep(5)
+                
+            except Exception as e:
+                print("Error in main loop:", e)
+                # Try to reconnect
+                try:
+                    client = connect_mqtt()
+                    if client is None:
+                        print("Failed to reconnect to MQTT")
+                        time.sleep(10)
+                except:
+                    print("Reconnection failed")
+                    time.sleep(10)
+                    
+    except KeyboardInterrupt:
+        print("Program stopped by user.")
+    finally:
+        # Cleanup
+        client.disconnect()
+        print("Disconnected from MQTT")
 
 if __name__ == "__main__":
     main()
