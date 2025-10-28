@@ -4,6 +4,8 @@ import ujson
 import time
 from umqtt.simple import MQTTClient
 
+# Koushik Sripathi 123CS0021
+
 # MQTT Configuration
 MQTT_BROKER = "test.mosquitto.org"
 CLIENT_ID = "mqtt-demo"
