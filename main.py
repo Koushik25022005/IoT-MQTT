@@ -14,6 +14,7 @@ CLIENT_ID = "mark-mqtt-demo"
 
 dht_sensor = dht.DHT22(Pin(33))
 onboard_led = Pin(23, Pin.OUT)
+# Koushik Sripathi 123CS0021
 
 PIR_PIN = 4                 # PIR input pin (choose a free GPIO)
 pir_pin = Pin(PIR_PIN, Pin.IN)

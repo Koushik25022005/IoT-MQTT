@@ -1,5 +1,7 @@
 # MQTT Protocol demonstration lab
 
+This is assignment is submitted by Koushik Sripathi (Roll no. 123CS0021)
+
 The given task was to create a circuit with two sensors along with the DHT22 sensor.
 
 Given below are the commands to execute and establish a connection between the sensors and the MQTT broker.
