@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "author": "Google Gemini",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -38.1,
+      "left": -111,
+      "attrs": { "temperature": "29", "humidity": "14" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": 94.8,
+      "left": 275.4,
+      "rotate": 90,
+      "attrs": { "color": "red" }
+    },
+    { "type": "wokwi-led", "id": "led2", "top": 102, "left": -92.2, "attrs": { "color": "red" } },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir1", "top": -130.4, "left": 2.22, "attrs": {} }
+  ],
+  "connections": [
+    [ "dht1:VCC", "esp:3V3", "red", [ "h-5" ] ],
+    [ "dht1:GND", "esp:GND.2", "black", [ "h-5" ] ],
+    [ "dht1:SDA", "esp:33", "green", [ "h-5" ] ],
+    [ "led1:A", "esp:23", "blue", [ "h-5" ] ],
+    [ "led1:C", "esp:GND.2", "black", [ "h-5" ] ],
+    [ "esp:GND.1", "led2:A", "black", [ "h-71.81", "v-9.6" ] ],
+    [ "led2:C", "esp:4", "green", [ "v0", "h173.2" ] ],
+    [ "pir1:OUT", "esp:4", "green", [ "v-67.2", "h-201.74" ] ],
+    [ "pir1:VCC", "esp:3V3", "red", [ "v0" ] ],
+    [ "pir1:GND", "esp:GND.2", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
