@@ -8,11 +8,11 @@ from umqtt.simple import MQTTClient
 
 # MQTT Configuration
 MQTT_BROKER = "test.mosquitto.org"
-CLIENT_ID = "mqtt-demo"
-TOPIC_MOTION = "mqtt-demo/motion"
-TOPIC_GAS = "mqtt-demo/gas"
-TOPIC_LED1 = "mqtt-demo/led1"  # controls gas LED
-TOPIC_LED2 = "mqtt-demo/led2"  # controls motion LED
+CLIENT_ID = "mqtt-demo2"
+TOPIC_MOTION = "mqtt-demo2/motion"
+TOPIC_GAS = "mqtt-demo2/gas"
+TOPIC_LED1 = "mqtt-demo2/led1"  # controls gas LED
+TOPIC_LED2 = "mqtt-demo2/led2"  # controls motion LED
 
 # Pin Configuration
 LED1_PIN = 23  # Gas indicator LED
